@@ -101,6 +101,34 @@ export function Login() {
                   className="pl-10"
                 />
               </div>
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="link"
+                  className="p-0 h-auto text-xs text-indigo-600"
+                  onClick={async () => {
+                    if (!supabase) {
+                      toast.error('Password reset is not available right now.');
+                      return;
+                    }
+                    if (!email) {
+                      toast.error('Enter your email first to reset your password.');
+                      return;
+                    }
+                    try {
+                      const { error } = await supabase.auth.resetPasswordForEmail(email);
+                      if (error) throw error;
+                      toast.success('Password reset email sent. Check your inbox.');
+                    } catch (err) {
+                      toast.error(
+                        err instanceof Error ? err.message : 'Failed to send reset email'
+                      );
+                    }
+                  }}
+                >
+                  Forgot password?
+                </Button>
+              </div>
             </div>
             <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700" disabled={loading}>
               {loading ? 'Signing in...' : 'Sign In'}
