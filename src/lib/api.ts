@@ -84,6 +84,15 @@ export const billingApi = {
     }),
 };
 
+// Email reputation
+export const reputationApi = {
+  get: (email: string) =>
+    request<{ reputation: EmailReputation }>('/api/email/reputation', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+};
+
 export interface User {
   id: number;
   email: string;
@@ -123,4 +132,16 @@ export interface DashboardStats {
   mediumRisk: number;
   lowRisk: number;
   removed: number;
+}
+
+export interface EmailReputation {
+  email: string;
+  deliverability: string | null;
+  quality_score: number | null;
+  is_free_email: boolean | null;
+  is_disposable_email: boolean | null;
+  is_catchall_email: boolean | null;
+  is_role_email: boolean | null;
+  is_mx_found: boolean | null;
+  is_smtp_valid: boolean | null;
 }

@@ -1,86 +1,86 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Switch } from './ui/switch';
 import { Label } from './ui/label';
-import { 
-  Bell, 
-  Mail, 
-  Phone, 
+import {
+  Bell,
+  Mail,
+  Phone,
   MapPin,
   AlertTriangle,
   CheckCircle2,
   Clock,
   Settings as SettingsIcon
 } from 'lucide-react';
-
-// Mock alerts data
-const mockAlerts = [
-  {
-    id: 1,
-    type: 'new_exposure',
-    severity: 'high',
-    title: 'New Phone Number Exposure',
-    description: 'Your phone number was found on a data broker website (FastPeopleSearch)',
-    data: '+1 (555) 123-4567',
-    timestamp: '2026-02-24 14:30',
-    read: false
-  },
-  {
-    id: 2,
-    type: 'risk_increase',
-    severity: 'medium',
-    title: 'Risk Level Increased',
-    description: 'Your email address on LinkedIn now has medium risk due to recent data breach reports',
-    data: 'john.doe@email.com',
-    timestamp: '2026-02-23 09:15',
-    read: false
-  },
-  {
-    id: 3,
-    type: 'new_exposure',
-    severity: 'high',
-    title: 'Address Found on Public Records',
-    description: 'Your home address was detected on a public records database',
-    data: '123 Main St, City, State',
-    timestamp: '2026-02-22 16:45',
-    read: true
-  },
-  {
-    id: 4,
-    type: 'success',
-    severity: 'low',
-    title: 'Successfully Removed',
-    description: 'Your data removal request for Twitter/X has been processed',
-    data: 'j.doe@company.com',
-    timestamp: '2026-02-21 11:20',
-    read: true
-  },
-  {
-    id: 5,
-    type: 'new_exposure',
-    severity: 'medium',
-    title: 'Email Found on Forum',
-    description: 'Your personal email was mentioned in a public forum post',
-    data: 'johndoe1985@gmail.com',
-    timestamp: '2026-02-20 08:00',
-    read: true
-  },
-  {
-    id: 6,
-    type: 'scheduled_scan',
-    severity: 'low',
-    title: 'Scheduled Scan Complete',
-    description: 'Weekly scan completed. 2 new sources checked, no new exposures found.',
-    data: null,
-    timestamp: '2026-02-19 02:00',
-    read: true
-  }
-];
+import { useAuth } from '@/lib/auth-context';
 
 export function Alerts() {
-  const [alerts, setAlerts] = useState(mockAlerts);
+  const { user } = useAuth();
+  const storedEmail = user?.email || localStorage.getItem('userEmail') || '';
+  const storedPhone = localStorage.getItem('userPhone') || '';
+
+  const initialAlerts = useMemo(() => {
+    const base: {
+      id: number;
+      type: string;
+      severity: 'low' | 'medium' | 'high';
+      title: string;
+      description: string;
+      data: string | null;
+      timestamp: string;
+      read: boolean;
+    }[] = [];
+
+    if (storedEmail) {
+      base.push({
+        id: 1,
+        type: 'risk_insight',
+        severity: 'medium',
+        title: 'Stay on top of email security',
+        description:
+          'We use your scans and email reputation checks to watch for changes that could affect ' +
+          storedEmail +
+          '. Enable alerts to be notified when something important changes.',
+        data: storedEmail,
+        timestamp: new Date().toISOString(),
+        read: false,
+      });
+    }
+
+    if (storedPhone) {
+      base.push({
+        id: 2,
+        type: 'phone_security',
+        severity: 'low',
+        title: 'Protect accounts linked to your phone',
+        description:
+          'Your phone number can be used for account recovery and 2FA. Keep it up to date in settings and be cautious about sharing it.',
+        data: storedPhone,
+        timestamp: new Date().toISOString(),
+        read: false,
+      });
+    }
+
+    if (!storedEmail && !storedPhone) {
+      base.push({
+        id: 3,
+        type: 'onboarding',
+        severity: 'low',
+        title: 'Add contact details to enable alerts',
+        description:
+          'Once you add an email and optional phone number in Settings, we can tailor alerts to your accounts and exposures.',
+        data: null,
+        timestamp: new Date().toISOString(),
+        read: false,
+      });
+    }
+
+    return base;
+  }, [storedEmail, storedPhone]);
+
+  const [alerts, setAlerts] = useState(initialAlerts);
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
 
   const markAsRead = (id: number) => {

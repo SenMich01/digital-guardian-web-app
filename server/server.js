@@ -4,6 +4,7 @@ import cors from 'cors';
 import Stripe from 'stripe';
 import db from './db.js';
 import { fetchBreachesForAccount, mapBreachToExposure } from './leakcheck.js';
+import { fetchEmailReputation } from './emailReputation.js';
 import { hashPassword, verifyPassword, createToken } from './auth.js';
 import { authMiddleware, premiumMiddleware } from './middleware.js';
 import {
@@ -172,6 +173,21 @@ app.post('/api/scan', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message || 'Scan failed' });
+  }
+});
+
+// --- Email reputation (Abstract API) ---
+app.post('/api/email/reputation', authMiddleware, async (req, res) => {
+  const { email } = req.body || {};
+  if (!email || typeof email !== 'string') {
+    return res.status(400).json({ error: 'Valid email required' });
+  }
+  try {
+    const reputation = await fetchEmailReputation(email);
+    res.json({ reputation });
+  } catch (err) {
+    console.error('Email reputation error:', err);
+    res.status(502).json({ error: 'Failed to load email reputation' });
   }
 });
 

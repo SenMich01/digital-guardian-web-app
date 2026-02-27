@@ -82,6 +82,7 @@ export function Settings() {
   const handleSaveProfile = () => {
     localStorage.setItem('userName', name);
     localStorage.setItem('userEmail', email);
+    localStorage.setItem('userPhone', phone);
     toast.success('Profile updated successfully!');
   };
 
