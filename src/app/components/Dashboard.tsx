@@ -31,7 +31,14 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { useAuth } from '@/lib/auth-context';
-import { dashboardApi, scanApi, type Exposure, type DashboardStats } from '@/lib/api';
+import {
+  dashboardApi,
+  scanApi,
+  reputationApi,
+  type Exposure,
+  type DashboardStats,
+  type EmailReputation,
+} from '@/lib/api';
 import { toast } from 'sonner';
 
 const COLORS = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6'];
@@ -43,6 +50,8 @@ export function Dashboard() {
   const [isScanning, setIsScanning] = useState(false);
   const [loading, setLoading] = useState(true);
   const autoScanned = useRef(false);
+  const [reputation, setReputation] = useState<EmailReputation | null>(null);
+  const [reputationLoading, setReputationLoading] = useState(false);
 
   const userName = user?.name || localStorage.getItem('userName') || 'User';
   const trialActive = subscription?.trialActive ?? false;
@@ -101,16 +110,29 @@ export function Dashboard() {
   useEffect(() => {
     if (loading || isScanning || exposures.length > 0 || !user?.email || autoScanned.current) return;
     autoScanned.current = true;
-    handleScan();
+    handleScan(false);
   }, [loading, user?.email, exposures.length, isScanning]);
 
-  const handleScan = async () => {
+  const handleScan = async (fromUser = false) => {
     setIsScanning(true);
     try {
       const res = await scanApi.scan();
       setExposures(res.exposures);
       await loadDashboard();
       toast.success(`Scan complete. Found ${res.count} breach${res.count !== 1 ? 'es' : ''}.`);
+
+      // Email reputation insights for the primary email – only when user clicks the scan button
+      if (fromUser && user?.email) {
+        setReputationLoading(true);
+        try {
+          const repRes = await reputationApi.get(user.email);
+          setReputation(repRes.reputation);
+        } catch {
+          setReputation(null);
+        } finally {
+          setReputationLoading(false);
+        }
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Scan failed');
     } finally {
@@ -282,7 +304,7 @@ export function Dashboard() {
               )}
             </div>
             <Button
-              onClick={handleScan}
+              onClick={() => handleScan(true)}
               disabled={isScanning}
               className="bg-white text-indigo-600 hover:bg-indigo-50"
             >
@@ -410,6 +432,142 @@ export function Dashboard() {
           </CardContent>
         </Card>
       </div>
+      {/* Email Reputation & Security Insights (free for all users after scan) */}
+      {user?.email && (
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle>Email Reputation &amp; Security Insights</CardTitle>
+            <CardDescription>
+              Based on checks for {user.email}. We use these signals to help you understand how this
+              address looks from a deliverability and risk perspective.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {reputationLoading && (
+              <p className="text-sm text-gray-500">Loading email reputation…</p>
+            )}
+            {!reputationLoading && !reputation && (
+              <p className="text-sm text-gray-500">
+                Click &quot;Start Scan&quot; to load reputation and security insights for your email.
+              </p>
+            )}
+            {!reputationLoading && reputation && (
+              <div className="space-y-3 text-sm text-gray-700">
+                <div>
+                  <p className="font-medium">Email risk level</p>
+                  <p className="mt-1">
+                    {(() => {
+                      const score = reputation.quality_score ?? 0;
+                      const deliverable = reputation.deliverability === 'DELIVERABLE';
+                      let label = 'Unknown';
+                      let explanation =
+                        'We were able to look up this address, but could not clearly determine its risk level.';
+                      if (deliverable && score >= 0.8 && !reputation.is_disposable_email) {
+                        label = 'Low';
+                        explanation =
+                          'This email looks deliverable and healthy based on the checks we run. It is still important to keep passwords unique and enable 2FA.';
+                      } else if (score >= 0.5) {
+                        label = 'Medium';
+                        explanation =
+                          'Some signals suggest this email may be lower quality or more likely to be misused. Be cautious about where you share it and how it is secured.';
+                      } else {
+                        label = 'High';
+                        explanation =
+                          'Multiple signals indicate this email may be higher risk (for example low quality score or limited deliverability). Use strong, unique passwords and be careful where it is used.';
+                      }
+                      return (
+                        <>
+                          <span className="font-semibold">{label}</span> – {explanation}
+                        </>
+                      );
+                    })()}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="font-medium">Email quality &amp; deliverability</p>
+                  <ul className="mt-1 list-disc pl-5 space-y-1">
+                    <li>
+                      Deliverability:{' '}
+                      <span className="font-medium">
+                        {reputation.deliverability || 'Unknown'}
+                      </span>
+                    </li>
+                    <li>
+                      Catch-all address:{' '}
+                      <span className="font-medium">
+                        {reputation.is_catchall_email === null
+                          ? 'Unknown'
+                          : reputation.is_catchall_email
+                          ? 'Yes'
+                          : 'No'}
+                      </span>
+                    </li>
+                    <li>
+                      SMTP validation:{' '}
+                      <span className="font-medium">
+                        {reputation.is_smtp_valid === null
+                          ? 'Not checked'
+                          : reputation.is_smtp_valid
+                          ? 'Valid'
+                          : 'Not valid'}
+                      </span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div>
+                  <p className="font-medium">Domain &amp; provider</p>
+                  <ul className="mt-1 list-disc pl-5 space-y-1">
+                    <li>
+                      Provider type:{' '}
+                      <span className="font-medium">
+                        {reputation.is_free_email === null
+                          ? 'Unknown'
+                          : reputation.is_free_email
+                          ? 'Free email provider'
+                          : 'Custom or business domain'}
+                      </span>
+                    </li>
+                    <li>
+                      Disposable or temporary:{' '}
+                      <span className="font-medium">
+                        {reputation.is_disposable_email === null
+                          ? 'Unknown'
+                          : reputation.is_disposable_email
+                          ? 'Yes'
+                          : 'No'}
+                      </span>
+                    </li>
+                    <li>
+                      MX records found:{' '}
+                      <span className="font-medium">
+                        {reputation.is_mx_found === null
+                          ? 'Unknown'
+                          : reputation.is_mx_found
+                          ? 'Yes'
+                          : 'No'}
+                      </span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div>
+                  <p className="font-medium">Security recommendations</p>
+                  <ul className="mt-1 list-disc pl-5 space-y-1">
+                    <li>Use strong, unique passwords for any accounts that use this email.</li>
+                    <li>Enable two-factor authentication (2FA) where possible.</li>
+                    <li>
+                      Re-scan this email regularly so new reputation or breach changes can be detected
+                      early.
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

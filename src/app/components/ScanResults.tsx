@@ -445,25 +445,24 @@ export function ScanResults() {
             </Card>
           ))}
           {displayExposures.length === 0 && (
-            <>
-              <Card>
-                <CardContent className="p-8 text-center space-y-2">
-                  <p className="text-gray-700 font-medium">
-                    {premiumSearchResults
-                      ? 'No breaches found for this email in our current dataset.'
-                      : 'No exposures found matching your filters.'}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    New breaches are added regularly, and some may not be public yet. Regular scans help you
-                    catch new exposures early.
-                  </p>
-                </CardContent>
-              </Card>
-              {renderInsights()}
-            </>
+            <Card>
+              <CardContent className="p-8 text-center space-y-2">
+                <p className="text-gray-700 font-medium">
+                  {premiumSearchResults
+                    ? 'No breaches found for this email in our current dataset.'
+                    : 'No exposures found matching your filters.'}
+                </p>
+                <p className="text-sm text-gray-500">
+                  New breaches are added regularly, and some may not be public yet. Regular scans help you
+                  catch new exposures early.
+                </p>
+              </CardContent>
+            </Card>
           )}
         </div>
       )}
+      {/* Reputation insights for searched email */}
+      {premiumSearchResults && renderReputationInsights()}
     </div>
   );
 }
