@@ -50,6 +50,21 @@ export function Dashboard() {
   const exempt = subscription?.exempt ?? false;
   const isPremium = subscription?.isPremium ?? false;
 
+  const getTrialCountdown = () => {
+    if (!trialEndsAt) return 'soon';
+    const end = new Date(trialEndsAt).getTime();
+    const now = Date.now();
+    const diffMs = end - now;
+    if (diffMs <= 0) return 'today';
+    const dayMs = 24 * 60 * 60 * 1000;
+    const days = Math.floor(diffMs / dayMs);
+    const hours = Math.floor((diffMs % dayMs) / (60 * 60 * 1000));
+    if (days <= 0) {
+      return `in ${hours} hour${hours === 1 ? '' : 's'}`;
+    }
+    return `in ${days} day${days === 1 ? '' : 's'}`;
+  };
+
   const loadDashboard = async () => {
     try {
       const res = await dashboardApi.stats();
@@ -182,8 +197,7 @@ export function Dashboard() {
         >
           {trialActive ? (
             <p className="text-sm">
-              <strong>Free trial:</strong> Your 3-day trial ends{' '}
-              {trialEndsAt ? new Date(trialEndsAt).toLocaleDateString() : 'soon'}. Subscribe to
+              <strong>Free trial:</strong> Your 3-day trial ends {getTrialCountdown()}. Subscribe to
               continue using Digital Guardian after your trial.
             </p>
           ) : isPremium ? (

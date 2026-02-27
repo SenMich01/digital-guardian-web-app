@@ -12,9 +12,9 @@ export function isExemptEmail(email) {
 }
 
 export function getTrialEndDate(createdAt) {
-  const d = new Date(createdAt);
-  d.setDate(d.getDate() + TRIAL_DAYS);
-  return d.toISOString();
+  const start = new Date(createdAt).getTime();
+  const end = start + TRIAL_DAYS * 24 * 60 * 60 * 1000; // exact 72 hours
+  return new Date(end).toISOString();
 }
 
 export function isTrialActive(trialEndsAt) {

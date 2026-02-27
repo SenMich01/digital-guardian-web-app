@@ -22,7 +22,7 @@ import { scanApi, type Exposure } from '@/lib/api';
 import { toast } from 'sonner';
 
 export function ScanResults() {
-  const { subscription } = useAuth();
+  const { subscription, user } = useAuth();
   const [exposures, setExposures] = useState<Exposure[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -33,7 +33,7 @@ export function ScanResults() {
   const [premiumSearchEmail, setPremiumSearchEmail] = useState('');
   const [premiumSearchLoading, setPremiumSearchLoading] = useState(false);
   const [premiumSearchResults, setPremiumSearchResults] = useState<Exposure[] | null>(null);
-  const isPremium = subscription?.isPremium ?? false;
+  const isPremiumPaid = (subscription?.plan === 'premium') || subscription?.exempt;
 
   useEffect(() => {
     (async () => {
@@ -65,7 +65,7 @@ export function ScanResults() {
       toast.error('Please enter a valid email address');
       return;
     }
-    if (!isPremium) {
+    if (!isPremiumPaid) {
       toast.error('Premium subscription required for manual email search');
       return;
     }
@@ -121,6 +121,50 @@ export function ScanResults() {
     ? `Search results for ${premiumSearchEmail}`
     : `Found ${filteredExposures.length} exposure${filteredExposures.length !== 1 ? 's' : ''} across the web`;
 
+  const primaryEmail = premiumSearchResults ? premiumSearchEmail : user?.email || '';
+
+  const renderInsights = () => {
+    if (!primaryEmail) return null;
+    const [, domain = ''] = primaryEmail.split('@');
+    const normalizedDomain = domain.toLowerCase();
+
+    const providerHint =
+      normalizedDomain.includes('gmail') ||
+      normalizedDomain.includes('outlook') ||
+      normalizedDomain.includes('yahoo')
+        ? 'This address uses a large email provider, which is frequently targeted for phishing and account takeover. Enabling 2FA and monitoring for new breaches is especially important.'
+        : 'Smaller or custom domains can still appear in breaches, but may not always be visible in public breach datasets.';
+
+    return (
+      <Card className="mt-4">
+        <CardContent className="p-6 space-y-3">
+          <h3 className="font-medium text-lg">Privacy insights for {primaryEmail}</h3>
+          <p className="text-sm text-gray-600">
+            We didn&apos;t find public breach records for this address in our current dataset. That&apos;s good
+            news, but it doesn&apos;t guarantee the address is risk free.
+          </p>
+          <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700">
+            <li>{providerHint}</li>
+            <li>
+              Attackers often reuse lists from older leaks. Regular scans help you catch exposures when new
+              data is added.
+            </li>
+            <li>
+              Reused passwords remain one of the biggest risks. If this email uses the same password on
+              multiple sites, update them and use a password manager.
+            </li>
+          </ul>
+          {!isPremiumPaid && (
+            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3 mt-2">
+              Upgrade to Premium to scan other addresses you use (work email, secondary accounts) and see a
+              fuller picture of your digital exposure.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className="p-8">
       {/* Header */}
@@ -136,7 +180,7 @@ export function ScanResults() {
       </div>
 
       {/* Premium Search (Premium users only) */}
-      {isPremium && (
+      {isPremiumPaid && (
         <Card className="mb-6 border-indigo-200 bg-indigo-50/30">
           <CardContent className="pt-6">
             <h3 className="font-medium mb-3 flex items-center gap-2">
@@ -176,7 +220,7 @@ export function ScanResults() {
         </Card>
       )}
 
-      {!isPremium && (
+      {!isPremiumPaid && (
         <Card className="mb-6 border-amber-200 bg-amber-50/30">
           <CardContent className="pt-6">
             <p className="text-sm flex items-center gap-2">
@@ -282,15 +326,22 @@ export function ScanResults() {
             </Card>
           ))}
           {displayExposures.length === 0 && (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <p className="text-gray-500">
-                  {premiumSearchResults
-                    ? 'No breaches found for this email.'
-                    : 'No exposures found matching your filters.'}
-                </p>
-              </CardContent>
-            </Card>
+            <>
+              <Card>
+                <CardContent className="p-8 text-center space-y-2">
+                  <p className="text-gray-700 font-medium">
+                    {premiumSearchResults
+                      ? 'No breaches found for this email in our current dataset.'
+                      : 'No exposures found matching your filters.'}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    New breaches are added regularly, and some may not be public yet. Regular scans help you
+                    catch new exposures early.
+                  </p>
+                </CardContent>
+              </Card>
+              {renderInsights()}
+            </>
           )}
         </div>
       )}

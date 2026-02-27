@@ -38,6 +38,21 @@ export function Settings() {
   const exempt = subscription?.exempt ?? false;
   const isPremium = subscription?.isPremium ?? false;
 
+  const getTrialCountdown = () => {
+    if (!trialEndsAt) return 'soon';
+    const end = new Date(trialEndsAt).getTime();
+    const now = Date.now();
+    const diffMs = end - now;
+    if (diffMs <= 0) return 'today';
+    const dayMs = 24 * 60 * 60 * 1000;
+    const days = Math.floor(diffMs / dayMs);
+    const hours = Math.floor((diffMs % dayMs) / (60 * 60 * 1000));
+    if (days <= 0) {
+      return `in ${hours} hour${hours === 1 ? '' : 's'}`;
+    }
+    return `in ${days} day${days === 1 ? '' : 's'}`;
+  };
+
   useEffect(() => {
     const success = searchParams.get('success');
     const canceled = searchParams.get('canceled');
@@ -124,9 +139,7 @@ export function Settings() {
         >
           {trialActive && (
             <p className="text-sm">
-              <strong>Trial:</strong> Ends{' '}
-              {trialEndsAt ? new Date(trialEndsAt).toLocaleDateString() : 'soon'}. Subscribe to
-              continue.
+              <strong>Trial:</strong> Ends {getTrialCountdown()}. Subscribe to continue.
             </p>
           )}
           {isPremium && !trialActive && (
